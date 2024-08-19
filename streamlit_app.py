@@ -53,27 +53,49 @@ if all(uploaded_files.values()):
         fig_genre = px.pie(dfs['individu'], names='GENRE', title="Répartition des volontaires par genre")
         st.plotly_chart(fig_genre)
 
-        # Analyse de la répartition par âge
+                # Analyse de la répartition par âge
         dfs['individu']['ANNEE DE NAISSANCE'] = pd.to_numeric(dfs['individu']['ANNEE DE NAISSANCE'].str.extract(r'(\d{4})')[0], errors='coerce')
         dfs['individu'] = dfs['individu'].dropna(subset=['ANNEE DE NAISSANCE'])
         dfs['individu']['AGE'] = current_year - dfs['individu']['ANNEE DE NAISSANCE']
-
+    
         age_bins = [0, 18, 30, 40, 50, 60, 70, 80, 100]
         dfs['individu']['TRANCHE_AGE'] = pd.cut(dfs['individu']['AGE'], bins=age_bins, labels=["0-17", "18-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"])
-        
-        fig_age = px.pie(dfs['individu'], names='TRANCHE_AGE', title="Répartition des volontaires par tranche d'âge")
+    
+        # Nouveau code pour histogramme décroissant
+        fig_age = px.histogram(dfs['individu'], x='TRANCHE_AGE', title="Répartition des volontaires par tranche d'âge", category_orders={'TRANCHE_AGE': dfs['individu']['TRANCHE_AGE'].value_counts().index.tolist()})
         st.plotly_chart(fig_age)
+    
+               # Calculer la répartition par niveau d'éducation
+        diplome_counts = dfs['individu']['Quel est le diplôme le plus élevé que vous avez obtenu ?'].value_counts()
 
-        # Répartition par niveau d'éducation
-        fig_diplome = px.histogram(dfs['individu'], x='Quel est le diplôme le plus élevé que vous avez obtenu ?', title="Répartition par niveau d'éducation")
+        # Créer l'histogramme décroissant
+        fig_diplome = px.bar(
+            diplome_counts.sort_values(ascending=False),
+            x=diplome_counts.index,
+            y=diplome_counts.values,
+            title="Répartition par niveau d'éducation",
+            labels={'x': 'Niveau d\'éducation', 'y': 'Nombre de volontaires'}
+        )
+
         st.plotly_chart(fig_diplome)
+
 
         # Analyse de la situation professionnelle
         fig_situation_emploi = px.pie(dfs['individu'], names='Quelle est votre situation actuelle par rapport à l\'emploi ?', title="Répartition par situation professionnelle")
         st.plotly_chart(fig_situation_emploi)
 
-        # Répartition des lieux de résidence
-        fig_lieu_residence = px.pie(dfs['foyer'], names='Votre lieu de résidence se trouve en :', title="Répartition des volontaires par lieu de résidence")
+        # Calculer la répartition par lieu de résidence en excluant les valeurs nulles
+        lieu_residence_counts = dfs['foyer']['Votre lieu de résidence se trouve en :'].dropna().value_counts()
+
+        # Créer l'histogramme décroissant
+        fig_lieu_residence = px.bar(
+            lieu_residence_counts.sort_values(ascending=False),
+            x=lieu_residence_counts.index,
+            y=lieu_residence_counts.values,
+            title="Répartition des volontaires par lieu de résidence",
+            labels={'x': 'Lieu de résidence', 'y': 'Nombre de volontaires'}
+        )
+
         st.plotly_chart(fig_lieu_residence)
 
     with tab3:
@@ -91,17 +113,19 @@ if all(uploaded_files.values()):
         else:
             st.warning("La colonne 'De quel type d'accident s'agissait-il ?' est manquante dans les données.")
 
-        # Répartition des accidents par lieu
-        if 'Où a eu lieu l\'accident ?' in dfs['accident']:
-            accident_location_counts = dfs['accident']["Où a eu lieu l'accident ?"].value_counts()
-            accident_location_above_threshold = accident_location_counts[accident_location_counts >= 5]
-            accident_location_below_threshold = pd.Series({'Autres': accident_location_counts[accident_location_counts < 5].sum()})
-            accident_location_counts = pd.concat([accident_location_above_threshold, accident_location_below_threshold])
+        # Calculer la répartition des accidents par lieu en excluant les valeurs nulles
+        accident_location_counts = dfs['accident']['Où a eu lieu l\'accident ?'].dropna().value_counts()
 
-            fig_location = px.pie(accident_location_counts, names=accident_location_counts.index, values=accident_location_counts.values, title="Répartition des accidents par lieu")
-            st.plotly_chart(fig_location)
-        else:
-            st.warning("La colonne 'Où a eu lieu l'accident ?' est manquante dans les données.")
+        # Créer l'histogramme décroissant
+        fig_accident_location = px.bar(
+            accident_location_counts.sort_values(ascending=False),
+            x=accident_location_counts.index,
+            y=accident_location_counts.values,
+            title="Répartition des accidents par lieu",
+            labels={'x': 'Lieu de l\'accident', 'y': 'Nombre d\'accidents'}
+        )
+
+        st.plotly_chart(fig_accident_location)
 
         # Analyse de la gravité des accidents
         if 'Combien de jours avez-vous été hospitalisé(e) ?' in dfs['accident']:
@@ -122,7 +146,8 @@ if all(uploaded_files.values()):
             age_bins = [0, 18, 30, 40, 50, 60, 70, 80, 100]
             accident_data_age['TRANCHE_AGE_ACCIDENT'] = pd.cut(accident_data_age['AGE_ACCIDENT'], bins=age_bins, labels=["0-17", "18-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"])
 
-            fig_age_accident = px.pie(accident_data_age, names='TRANCHE_AGE_ACCIDENT', title="Répartition des accidents par tranche d'âge")
+            # Nouveau code pour histogramme décroissant
+            fig_age_accident = px.histogram(accident_data_age, x='TRANCHE_AGE_ACCIDENT', title="Répartition des accidents par tranche d'âge", category_orders={'TRANCHE_AGE_ACCIDENT': accident_data_age['TRANCHE_AGE_ACCIDENT'].value_counts().index.tolist()})
             st.plotly_chart(fig_age_accident)
         else:
             st.warning("La colonne 'ANNEE DE NAISSANCE' est manquante dans les données.")
@@ -130,30 +155,36 @@ if all(uploaded_files.values()):
     with tab4:
         st.header("Analyse des facteurs de risques")
 
-        # Répartition par IMC
-        if 'Quel est votre poids actuel en kg ?' in dfs['individu'] and 'Quelle est votre taille actuelle en cm ?' in dfs['individu']:
-            dfs['individu']['IMC'] = dfs['individu']["Quel est votre poids actuel en kg ?"] / (dfs['individu']["Quelle est votre taille actuelle en cm ?"] / 100) ** 2
-            imc_bins = [0, 18.5, 25, 30, 35, 40, 50]
-            dfs['individu']['TRANCHE_IMC'] = pd.cut(dfs['individu']['IMC'], bins=imc_bins, labels=["Insuffisance pondérale", "Corpulence normale", "Surpoids", "Obésité modérée", "Obésité sévère", "Obésité morb        ide"])
-            fig_imc = px.pie(dfs['individu'], names='TRANCHE_IMC', title="Répartition des volontaires par tranche d'IMC")
-            st.plotly_chart(fig_imc)
-        else:
-            st.warning("Les colonnes 'Poids' ou 'Taille' sont manquantes dans les données des individus.")
+        # Calcul de l'IMC et suppression des valeurs nulles
+        dfs['individu']['IMC'] = dfs['individu']["Quel est votre poids actuel en kg ?"] / (dfs['individu']["Quelle est votre taille actuelle en cm ?"] / 100) ** 2
+        dfs['individu'] = dfs['individu'].dropna(subset=['IMC'])
+        
+        # Définir les tranches d'IMC
+        imc_bins = [0, 18.5, 25, 30, 35, 40, 50]
+        dfs['individu']['TRANCHE_IMC'] = pd.cut(dfs['individu']['IMC'], bins=imc_bins, labels=["Insuffisance pondérale", "Corpulence normale", "Surpoids", "Obésité modérée", "Obésité sévère", "Obésité morbide"])
+        
+        # Créer le camembert de la répartition par tranche d'IMC
+        imc_counts = dfs['individu']['TRANCHE_IMC'].dropna().value_counts()
+        
+        fig_imc = px.pie(
+            values=imc_counts.values,
+            names=imc_counts.index,
+            title="Répartition des volontaires par tranche d'IMC"
+        )
+        
+        st.plotly_chart(fig_imc)
 
-        # Analyse de la consommation anad'alcool
-        if "A quelle fréquence consommez-vous de l'alcool (Vin, bière, cidre,apéritif, digestif, …) ?" in dfs['individu']:
-            alcohol_mapping = {
-                "Jamais": 0,
-                "Une fois par mois ou moins": 1,
-                "2 à 4 fois par mois": 2,
-                "2 à 3 fois par semaine": 3,
-                "4 fois ou plus par semaine": 4
-            }
-            dfs['individu']['Consommation alcool'] = dfs['individu']["A quelle fréquence consommez-vous de l'alcool (Vin, bière, cidre,apéritif, digestif, …) ?"].map(alcohol_mapping)
-            fig_alcohol = px.pie(dfs['individu'], names='Consommation alcool', title="Répartition de la consommation d'alcool")
-            st.plotly_chart(fig_alcohol)
-        else:
-            st.warning("La colonne 'Consommation d'alcool' est manquante dans les données des individus.")
+        # Retirer les valeurs nulles pour la consommation d'alcool
+        alcool_counts = dfs['individu']["A quelle fréquence consommez-vous de l'alcool (Vin, bière, cidre,apéritif, digestif, …) ?"].dropna().value_counts()
+
+        # Créer le camembert de la répartition de la consommation d'alcool
+        fig_alcohol = px.pie(
+            values=alcool_counts.values,
+            names=alcool_counts.index,
+            title="Répartition de la consommation d'alcool"
+        )
+
+        st.plotly_chart(fig_alcohol)
 
         # Analyse de la consommation de tabac
         if "Combien fumez-vous ou fumiez-vous de cigarettes, cigarillos, cigares ou pipes par jour ?" in dfs['individu']:
@@ -183,13 +214,19 @@ if all(uploaded_files.values()):
         else:
             st.warning("Les colonnes sur l'état physique et mental sont manquantes dans les données des individus.")
 
-          # Analyse du type d'habitat
-        if "Quel est le type d'habitat de votre voisinage ?" in dfs['foyer']:
-            habitat_data = dfs['foyer'].dropna(subset=["Quel est le type d'habitat de votre voisinage ?"])
-            fig_habitat = px.pie(habitat_data, names="Quel est le type d'habitat de votre voisinage ?", title="Répartition des types d'habitat")
-            st.plotly_chart(fig_habitat)
-        else:
-            st.warning("La colonne 'Type d'habitat' est manquante dans les données des foyers.")
+        # Calculer la répartition des types d'habitat en excluant les valeurs nulles
+        habitat_counts = dfs['foyer']['Quel est le type d\'habitat de votre voisinage ?'].dropna().value_counts()
+
+        # Créer l'histogramme décroissant
+        fig_habitat = px.bar(
+            habitat_counts.sort_values(ascending=False),
+            x=habitat_counts.index,
+            y=habitat_counts.values,
+            title="Répartition des types d'habitat",
+            labels={'x': 'Type d\'habitat', 'y': 'Nombre de foyers'}
+        )
+
+        st.plotly_chart(fig_habitat)
 
         # Analyse des conditions de vie et accidents
         if "Parmi les tranches suivantes, dans laquelle se situe le revenu mensuel net de votre foyer ?" in dfs['foyer'] and "Combien de personnes vivent avec vous dans votre foyer ?" in dfs['foyer']:
